@@ -1,10 +1,5 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import gsap from 'gsap';
-import * as dat from 'dat.gui';
-
-console.log(THREE);
-const gui = new dat.GUI();
 
 // 创建场景
 const scene = new THREE.Scene();
@@ -28,63 +23,67 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.set(0, 0, 10); // x y z 轴
 scene.add(camera);
 
+// 导入纹理
+console.log(THREE);
+const textureLoader = new THREE.TextureLoader();
+const doorColorTexture = textureLoader.load('./textures/door/color.jpg');
+const doorAlphaTexture = textureLoader.load('./textures/door/alpha.jpg');
+const doorAoTexture = textureLoader.load('./textures/door/ao.png');
+// const texture = textureLoader.load('./textures/door/filter.png');
+// texture.minFilter = THREE.NearestFilter;
+// texture.magFilter = THREE.NearestFilter;
+
+// texture.minFilter = THREE.LinearFilter;
+// texture.magFilter = THREE.LinearFilter;
+
+// doorColorTexture.offset.x = 0.5;
+// doorColorTexture.offset.y = 0.5;
+// doorColorTexture.offset.set(0.5, 0.5);
+
+// 设置旋转原点
+// doorColorTexture.center.set(0.5, 0.5);
+// doorColorTexture.rotation = Math.PI / 4;
+
+// 水平重复2次，垂直方向3次
+// doorColorTexture.repeat.set(2, 3);
+// 设置重复模式
+// doorColorTexture.wrapS = THREE.MirroredRepeatWrapping;
+// doorColorTexture.wrapT = THREE.RepeatWrapping;
+
 // 创建几何体
-const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
-// 创建材质
-const cubeMaterial = new THREE.MeshBasicMaterial({ color: '#c50a61' });
+const cubeGeometry = new THREE.BoxBufferGeometry(1, 1, 1);
 
-// 根据几何体和材质创建物体
-const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-
-gui
-  .add(cube.position, 'x')
-  .min(0)
-  .max(5)
-  .step(0.01)
-  .name('移动X轴')
-  .onChange((value) => {
-    console.log('值被修改：', value);
-  })
-  .onFinishChange((value) => {
-    console.log('完全停下来：', value);
-  });
-
-const params = {
+const basicMaterial = new THREE.MeshBasicMaterial({
   color: '#ffff00',
-  fn() {
-    gsap.to(cube.position, {
-      x: 5,
-      duration: 2,
-      yoyo: true,
-      repeat: -1,
-    });
-  },
-};
-gui.addColor(params, 'color').onChange((value) => {
-  console.log('值被修改：', value);
-  cube.material.color.set(value);
+  map: doorColorTexture,
+  alphaMap: doorAlphaTexture,
+  aoMap: doorAoTexture, //  aoMap 需要设置第二组uv
+  aoMapIntensity: 0.5,
+  transparent: true,
+  // opacity: 0.5,
+  // side: THREE.DoubleSide,
+  // map: texture,
 });
 
-// 设置选项框
-gui.add(cube, 'visible').name('是否显示');
-gui.add(params, 'fn').name('点击立方体运动');
-
-const floder = gui.addFolder('设置立方体');
-floder.add(cube.material, 'wireframe');
-// 设置物体的位置
-// cube.position.set(10, 0, 0);
-// cube.position.x = 5;
-
-// cube.scale.set(3, 2, 1);
-// cube.scale.x = 3;
-
-cube.rotation.set(Math.PI / 4, 0, 0);
-
-// 添加到场景中
+const cube = new THREE.Mesh(cubeGeometry, basicMaterial);
 scene.add(cube);
+cubeGeometry.setAttribute(
+  'uv2',
+  new THREE.BufferAttribute(cubeGeometry.attributes.uv.array, 2)
+);
 
+const planeGeometry = new THREE.PlaneBufferGeometry(1, 1);
+
+const plane = new THREE.Mesh(planeGeometry, basicMaterial);
+plane.position.set(3, 0, 0);
+scene.add(plane);
+
+planeGeometry.setAttribute(
+  'uv2',
+  new THREE.BufferAttribute(planeGeometry.attributes.uv.array, 2)
+);
 // 初始化渲染器
-const renderer = new THREE.WebGL1Renderer();
+const renderer = new THREE.WebGLRenderer();
 
 // 设置渲染尺寸大小
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -103,25 +102,6 @@ controls.enableDamping = true;
 // 添加坐标轴
 const axesHelper = new THREE.AxesHelper(5);
 scene.add(axesHelper);
-
-// const animate1 = gsap.to(cube.position, {
-//   x: 5,
-//   duration: 5,
-//   // 重复次数， -1 为无限
-//   repeat: -1,
-//   // 来回运动
-//   yoyo: true,
-//   // 延迟
-//   delay: 2,
-//   ease: 'power1.inOut',
-//   onComplete() {
-//     console.log('complete');
-//   },
-//   omStart() {
-//     console.log('start');
-//   },
-// });
-// gsap.to(cube.rotation, { x: 2 * Math.PI, duration: 5, ease: 'power1.inOut' });
 
 // 监听全屏
 window.addEventListener('dblclick', () => {
