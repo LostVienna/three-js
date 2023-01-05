@@ -29,6 +29,11 @@ const textureLoader = new THREE.TextureLoader();
 const doorColorTexture = textureLoader.load('./textures/door/color.jpg');
 const doorAlphaTexture = textureLoader.load('./textures/door/alpha.jpg');
 const doorAoTexture = textureLoader.load('./textures/door/ao.png');
+const doorHightTexture = textureLoader.load('./textures/door/hightlight.jpg');
+const roughnessTexture = textureLoader.load('./textures/door/roughness.jpg');
+const metalnessTexture = textureLoader.load('./textures/door/roughness.jpg');
+const normalTexture = textureLoader.load('./textures/door/normal.jpg');
+
 // const texture = textureLoader.load('./textures/door/filter.png');
 // texture.minFilter = THREE.NearestFilter;
 // texture.magFilter = THREE.NearestFilter;
@@ -51,37 +56,54 @@ const doorAoTexture = textureLoader.load('./textures/door/ao.png');
 // doorColorTexture.wrapT = THREE.RepeatWrapping;
 
 // 创建几何体
-const cubeGeometry = new THREE.BoxBufferGeometry(1, 1, 1);
+const cubeGeometry = new THREE.BoxBufferGeometry(1, 1, 1, 100, 100, 100);
 
-const basicMaterial = new THREE.MeshBasicMaterial({
+const material = new THREE.MeshStandardMaterial({
   color: '#ffff00',
   map: doorColorTexture,
   alphaMap: doorAlphaTexture,
   aoMap: doorAoTexture, //  aoMap 需要设置第二组uv
-  aoMapIntensity: 0.5,
+  // aoMapIntensity: 0.5,
   transparent: true,
+  displacementMap: doorHightTexture,
+  displacementScale: 0.1,
+  roughness: 1,
+  roughnessMap: roughnessTexture,
+  metalness: 1,
+  metalnessMap: metalnessTexture,
+  normalMap: normalTexture,
   // opacity: 0.5,
   // side: THREE.DoubleSide,
   // map: texture,
 });
 
-const cube = new THREE.Mesh(cubeGeometry, basicMaterial);
+const cube = new THREE.Mesh(cubeGeometry, material);
 scene.add(cube);
 cubeGeometry.setAttribute(
   'uv2',
   new THREE.BufferAttribute(cubeGeometry.attributes.uv.array, 2)
 );
 
-const planeGeometry = new THREE.PlaneBufferGeometry(1, 1);
+const planeGeometry = new THREE.PlaneBufferGeometry(1, 1, 200, 200);
 
-const plane = new THREE.Mesh(planeGeometry, basicMaterial);
-plane.position.set(3, 0, 0);
+const plane = new THREE.Mesh(planeGeometry, material);
+plane.position.set(1.5, 0, 0);
 scene.add(plane);
 
 planeGeometry.setAttribute(
   'uv2',
   new THREE.BufferAttribute(planeGeometry.attributes.uv.array, 2)
 );
+
+// 灯光
+// 环境光
+// const light = new THREE.AmbientLight(0xffffff, 0.5);
+// scene.add(light);
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+directionalLight.position.set(10, 10, 10);
+scene.add(directionalLight);
+
 // 初始化渲染器
 const renderer = new THREE.WebGLRenderer();
 
