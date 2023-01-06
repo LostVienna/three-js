@@ -23,18 +23,11 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.set(0, 0, 10); // x y z 轴
 scene.add(camera);
 
-const event = {
-  onLoad: () => {
-    console.log('加载完成');
-  },
-  onProgress: (e, num, total) => {
-    console.log('onprogress: ', e, num, total);
-    console.log('加载进度：: ', `${((num / total) * 100).toFixed(2)}%`);
-  },
-  onError: (e) => {
-    console.log('onerror: ', e);
-  },
-};
+// 灯光阴影
+// 1、设置渲染器开启阴影的计算 renderer.shadowMap.enabled = true
+// 2、设置光照投射阴影 directionalLight.castShadow = true
+// 3、设置物体投射阴影 sphere.castShadow = true
+// 4、设置物体接收投射阴影 plane.receiveShadow = true
 
 const sphereGeometry = new THREE.SphereGeometry(1, 20, 20);
 const material = new THREE.MeshStandardMaterial();

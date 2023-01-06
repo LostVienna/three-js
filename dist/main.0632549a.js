@@ -37016,18 +37016,13 @@ var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHei
 // 设置相机位置
 camera.position.set(0, 0, 10); // x y z 轴
 scene.add(camera);
-var event = {
-  onLoad: function onLoad() {
-    console.log('加载完成');
-  },
-  onProgress: function onProgress(e, num, total) {
-    console.log('onprogress: ', e, num, total);
-    console.log('加载进度：: ', "".concat((num / total * 100).toFixed(2), "%"));
-  },
-  onError: function onError(e) {
-    console.log('onerror: ', e);
-  }
-};
+
+// 灯光阴影
+// 1、设置渲染器开启阴影的计算 renderer.shadowMap.enabled = true
+// 2、设置光照投射阴影 directionalLight.castShadow = true
+// 3、设置物体投射阴影 sphere.castShadow = true
+// 4、设置物体接收投射阴影 plane.receiveShadow = true
+
 var sphereGeometry = new THREE.SphereGeometry(1, 20, 20);
 var material = new THREE.MeshStandardMaterial();
 var sphere = new THREE.Mesh(sphereGeometry, material);
