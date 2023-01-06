@@ -1,8 +1,16 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader';
 
 // 创建场景
 const scene = new THREE.Scene();
+
+const rgbeLoader = new RGBELoader();
+rgbeLoader.loadAsync('textures/hdr/1.hdr').then((texture) => {
+  texture.mapping = THREE.EquirectangularReflectionMapping;
+  scene.background = texture;
+  scene.environment = texture;
+});
 
 // 创建相机 函数总共有四个参数，分别是fov，aspect，near，far 。fov表示摄像机视锥体垂直视野角度，最小值为0，最大值为180，默认值为50，实际项目中一般都定义45，因为45最接近人正常睁眼角度；aspect表示摄像机视锥体长宽比，默认长宽比为1，即表示看到的是正方形，实际项目中使用的是屏幕的宽高比；near表示摄像机视锥体近端面，这个值默认为0.1，实际项目中都会设置为1；far表示摄像机视锥体远端面，默认为2000，这个值可以是无限的，说的简单点就是我们视觉所能看到的最远距离。
 /**
@@ -23,77 +31,49 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.set(0, 0, 10); // x y z 轴
 scene.add(camera);
 
-// 导入纹理
-console.log(THREE);
-const textureLoader = new THREE.TextureLoader();
-const doorColorTexture = textureLoader.load('./textures/door/color.jpg');
-const doorAlphaTexture = textureLoader.load('./textures/door/alpha.jpg');
-const doorAoTexture = textureLoader.load('./textures/door/ao.png');
-const doorHightTexture = textureLoader.load('./textures/door/hightlight.jpg');
-const roughnessTexture = textureLoader.load('./textures/door/roughness.jpg');
-const metalnessTexture = textureLoader.load('./textures/door/roughness.jpg');
-const normalTexture = textureLoader.load('./textures/door/normal.jpg');
+const event = {
+  onLoad: () => {
+    console.log('加载完成');
+  },
+  onProgress: (e, num, total) => {
+    console.log('onprogress: ', e, num, total);
+    console.log('加载进度：: ', `${((num / total) * 100).toFixed(2)}%`);
+  },
+  onError: (e) => {
+    console.log('onerror: ', e);
+  },
+};
 
-// const texture = textureLoader.load('./textures/door/filter.png');
-// texture.minFilter = THREE.NearestFilter;
-// texture.magFilter = THREE.NearestFilter;
+// 加载管理器
+const loadManger = new THREE.LoadingManager(
+  event.onLoad,
+  event.onProgress,
+  event.onError
+);
 
-// texture.minFilter = THREE.LinearFilter;
-// texture.magFilter = THREE.LinearFilter;
-
-// doorColorTexture.offset.x = 0.5;
-// doorColorTexture.offset.y = 0.5;
-// doorColorTexture.offset.set(0.5, 0.5);
-
-// 设置旋转原点
-// doorColorTexture.center.set(0.5, 0.5);
-// doorColorTexture.rotation = Math.PI / 4;
-
-// 水平重复2次，垂直方向3次
-// doorColorTexture.repeat.set(2, 3);
-// 设置重复模式
-// doorColorTexture.wrapS = THREE.MirroredRepeatWrapping;
-// doorColorTexture.wrapT = THREE.RepeatWrapping;
-
-// 创建几何体
-const cubeGeometry = new THREE.BoxBufferGeometry(1, 1, 1, 100, 100, 100);
-
+// 设置cube纹理加载器
+const cubeTextureLoader = new THREE.CubeTextureLoader(loadManger);
+const envMapTexture = cubeTextureLoader.load([
+  './textures/env/1.jpg',
+  './textures/env/2.jpg',
+  './textures/env/3.jpg',
+  './textures/env/4.jpg',
+  './textures/env/5.jpg',
+  './textures/env/6.jpg',
+]);
+const sphereGeometry = new THREE.SphereGeometry(1, 20, 20);
 const material = new THREE.MeshStandardMaterial({
-  color: '#ffff00',
-  map: doorColorTexture,
-  alphaMap: doorAlphaTexture,
-  aoMap: doorAoTexture, //  aoMap 需要设置第二组uv
-  // aoMapIntensity: 0.5,
-  transparent: true,
-  displacementMap: doorHightTexture,
-  displacementScale: 0.1,
-  roughness: 1,
-  roughnessMap: roughnessTexture,
-  metalness: 1,
-  metalnessMap: metalnessTexture,
-  normalMap: normalTexture,
-  // opacity: 0.5,
-  // side: THREE.DoubleSide,
-  // map: texture,
+  metalness: 0.7,
+  roughness: 0.1,
+  // envMap: envMapTexture,
 });
 
-const cube = new THREE.Mesh(cubeGeometry, material);
-scene.add(cube);
-cubeGeometry.setAttribute(
-  'uv2',
-  new THREE.BufferAttribute(cubeGeometry.attributes.uv.array, 2)
-);
-
-const planeGeometry = new THREE.PlaneBufferGeometry(1, 1, 200, 200);
-
-const plane = new THREE.Mesh(planeGeometry, material);
-plane.position.set(1.5, 0, 0);
-scene.add(plane);
-
-planeGeometry.setAttribute(
-  'uv2',
-  new THREE.BufferAttribute(planeGeometry.attributes.uv.array, 2)
-);
+const sphere = new THREE.Mesh(sphereGeometry, material);
+scene.add(sphere);
+// 添加场景背景
+scene.background = envMapTexture;
+// 给场景所有物体添加环境贴图
+scene.environment = envMapTexture;
 
 // 灯光
 // 环境光
