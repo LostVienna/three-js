@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import * as dat from 'dat.gui';
+import { MeshBasicMaterial } from 'three';
+
+const gui = new dat.GUI();
 
 // 创建场景
 const scene = new THREE.Scene();
@@ -25,7 +29,7 @@ scene.add(camera);
 
 // 灯光阴影
 // 1、设置渲染器开启阴影的计算 renderer.shadowMap.enabled = true
-// 2、设置光照投射阴影 directionalLight.castShadow = true
+// 2、设置光照投射阴影 pointLight.castShadow = true
 // 3、设置物体投射阴影 sphere.castShadow = true
 // 4、设置物体接收投射阴影 plane.receiveShadow = true
 
@@ -49,20 +53,38 @@ plane.receiveShadow = true;
 
 scene.add(plane);
 
+const smallBall = new THREE.Mesh(
+  new THREE.SphereGeometry(0.1, 20, 20),
+  new MeshBasicMaterial({ color: 0xff0000 })
+);
+smallBall.position.set(2, 2, 2);
+
 // 灯光
 // 环境光
 // const light = new THREE.AmbientLight(0xffffff, 0.5);
 // scene.add(light);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-directionalLight.position.set(10, 10, 10);
+const pointLight = new THREE.PointLight(0xff0000, 80);
+pointLight.position.set(2, 2, 2);
 
-directionalLight.castShadow = true;
+pointLight.castShadow = true;
 
-scene.add(directionalLight);
+// 阴影贴图模糊度
+pointLight.shadow.radius = 20;
+// 阴影贴图分辨率
+pointLight.shadow.mapSize.set(512, 512);
+
+smallBall.add(pointLight);
+
+scene.add(smallBall);
+
+gui.add(pointLight.position, 'x', -5, 5);
+gui.add(pointLight, 'distance', 0, 5, 0.001);
 
 // 初始化渲染器
 const renderer = new THREE.WebGLRenderer();
+
+renderer.physicallyCorrectLights = true;
 
 // 开启环境中的阴影贴图
 renderer.shadowMap.enabled = true;
@@ -114,7 +136,16 @@ window.addEventListener('resize', () => {
   renderer.setPixelRatio(window.devicePixelRatio);
 });
 
+const clock = new THREE.Clock();
+let a = 1;
 function render() {
+  const time = clock.getElapsedTime();
+  // console.log(time);
+  a += 0.03;
+  smallBall.position.x = Math.sin(a) * 3;
+  smallBall.position.z = Math.cos(a) * 3;
+  smallBall.position.y = 2 + Math.sin(time * 5);
+
   controls.update();
   renderer.render(scene, camera);
   // 渲染下一帧的时候就会调用render函数
