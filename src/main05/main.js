@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import * as dat from 'dat.gui';
+import { BufferAttribute } from 'three';
 
 const gui = new dat.GUI();
 
@@ -19,84 +20,94 @@ const camera = new THREE.PerspectiveCamera(
   45,
   window.innerWidth / window.innerHeight,
   1,
-  1000
+  40
 );
 
 // 设置相机位置
 camera.position.set(0, 0, 10); // x y z 轴
 scene.add(camera);
 
-// 灯光阴影
-// 1、设置渲染器开启阴影的计算 renderer.shadowMap.enabled = true
-// 2、设置光照投射阴影 spotLight.castShadow = true
-// 3、设置物体投射阴影 sphere.castShadow = true
-// 4、设置物体接收投射阴影 plane.receiveShadow = true
+const params = {
+  count: 10000,
+  branch: 12,
+  radius: 5,
+  size: 0.1,
+  color: '#ff6030',
+  rotateScal: 0.3,
+  endColor: '#1b3984',
+};
 
-const sphereGeometry = new THREE.SphereGeometry(1, 20, 20);
-const material = new THREE.MeshStandardMaterial();
+let geometry = null;
+let material = null;
+let points = null;
 
-const sphere = new THREE.Mesh(sphereGeometry, material);
-// 投射阴影
-sphere.castShadow = true;
+const textureLoader = new THREE.TextureLoader();
+const texture = textureLoader.load('./textures/door/1.png');
+const centerColor = new THREE.Color(params.color);
+const endColor = new THREE.Color(params.endColor);
 
-scene.add(sphere);
+function genrateGalaxy() {
+  geometry = new THREE.BufferGeometry();
 
-// 创建平面
-const planeGeometry = new THREE.PlaneGeometry(50, 50);
-const plane = new THREE.Mesh(planeGeometry, material);
-plane.position.set(0, -1, 0);
-plane.rotation.x = -Math.PI / 2;
+  const positions = new Float32Array(params.count * 3);
+  const colors = new Float32Array(params.count * 3);
 
-// 接收阴影
-plane.receiveShadow = true;
+  for (let index = 0; index < params.count; index++) {
+    const branchAngel =
+      (index % params.branch) * ((2 * Math.PI) / params.branch);
 
-scene.add(plane);
+    // 到圆心的距离
+    const distance = Math.random() * params.radius * Math.pow(Math.random(), 3);
+    const randomX =
+      (Math.pow(Math.random() * 2 - 1, 3) * (params.radius - distance)) / 5;
+    const randomY =
+      (Math.pow(Math.random() * 2 - 1, 3) * (params.radius - distance)) / 5;
+    const randomZ =
+      (Math.pow(Math.random() * 2 - 1, 3) * (params.radius - distance)) / 5;
 
-// 灯光
-// 环境光
-// const light = new THREE.AmbientLight(0xffffff, 0.5);
-// scene.add(light);
+    let current = index * 3;
+    positions[current] =
+      Math.cos(branchAngel + distance * params.rotateScal) * distance + randomX;
+    positions[current + 1] = 0 + randomY;
+    positions[current + 2] =
+      Math.sin(branchAngel + distance * params.rotateScal) * distance + randomZ;
 
-const spotLight = new THREE.SpotLight(0xffffff, 2);
-spotLight.position.set(10, 10, 10);
+    const mixColor = centerColor.clone();
+    mixColor.lerp(endColor, distance / params.radius);
 
-spotLight.castShadow = true;
+    colors[current] = mixColor.r;
+    colors[current + 1] = mixColor.g;
+    colors[current + 2] = mixColor.b;
+  }
 
-// 阴影贴图模糊度
-spotLight.shadow.radius = 20;
-// 阴影贴图分辨率
-spotLight.shadow.mapSize.set(4096, 4096);
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-spotLight.target = sphere;
+  material = new THREE.PointsMaterial({
+    size: params.size,
+    // color: new THREE.Color(params.color),
+    sizeAttenuation: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    map: texture,
+    alphaMap: texture,
+    transparent: true,
+    vertexColors: true,
+  });
 
-spotLight.angle = Math.PI / 6;
+  points = new THREE.Points(geometry, material);
+  scene.add(points);
+}
 
-spotLight.distance = 0;
-
-spotLight.penumbra = 0;
-
-spotLight.decay = 0;
-
-// 设置透射相机的属性
-// spotLight.shadow.camera.near = 0.5;
-// spotLight.shadow.camera.far = 500;
-// spotLight.shadow.camera.fov = 500;
-
-scene.add(spotLight);
-
-gui.add(sphere.position, 'x', -50, 50);
-gui.add(spotLight, 'angle', 0, Math.PI / 2);
-gui.add(spotLight, 'distance', 0, 10, 0.01);
-gui.add(spotLight, 'penumbra', 0, 1, 0.01);
-gui.add(spotLight, 'decay', 0, 5, 0.01);
+genrateGalaxy();
 
 // 初始化渲染器
 const renderer = new THREE.WebGLRenderer();
 
+renderer.physicallyCorrectLights = true;
+
 // 开启环境中的阴影贴图
 renderer.shadowMap.enabled = true;
-
-renderer.physicallyCorrectLights = true;
 
 // 设置渲染尺寸大小
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -145,6 +156,7 @@ window.addEventListener('resize', () => {
   renderer.setPixelRatio(window.devicePixelRatio);
 });
 
+const clock = new THREE.Clock();
 function render() {
   controls.update();
   renderer.render(scene, camera);

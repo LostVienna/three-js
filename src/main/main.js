@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import * as dat from 'dat.gui';
-import { MeshBasicMaterial } from 'three';
+import { BufferAttribute } from 'three';
 
 const gui = new dat.GUI();
 
@@ -20,66 +20,86 @@ const camera = new THREE.PerspectiveCamera(
   45,
   window.innerWidth / window.innerHeight,
   1,
-  1000
+  40
 );
 
 // 设置相机位置
 camera.position.set(0, 0, 10); // x y z 轴
 scene.add(camera);
 
-// 灯光阴影
-// 1、设置渲染器开启阴影的计算 renderer.shadowMap.enabled = true
-// 2、设置光照投射阴影 pointLight.castShadow = true
-// 3、设置物体投射阴影 sphere.castShadow = true
-// 4、设置物体接收投射阴影 plane.receiveShadow = true
+const params = {
+  count: 10000,
+  branch: 12,
+  radius: 5,
+  size: 0.1,
+  color: '#ff6030',
+  rotateScal: 0.3,
+  endColor: '#1b3984',
+};
 
-const sphereGeometry = new THREE.SphereGeometry(1, 20, 20);
-const material = new THREE.MeshStandardMaterial();
+let geometry = null;
+let material = null;
+let points = null;
 
-const sphere = new THREE.Mesh(sphereGeometry, material);
-// 投射阴影
-sphere.castShadow = true;
+const textureLoader = new THREE.TextureLoader();
+const texture = textureLoader.load('./textures/door/1.png');
+const centerColor = new THREE.Color(params.color);
+const endColor = new THREE.Color(params.endColor);
 
-scene.add(sphere);
+function genrateGalaxy() {
+  geometry = new THREE.BufferGeometry();
 
-// 创建平面
-const planeGeometry = new THREE.PlaneGeometry(10, 10);
-const plane = new THREE.Mesh(planeGeometry, material);
-plane.position.set(0, -1, 0);
-plane.rotation.x = -Math.PI / 2;
+  const positions = new Float32Array(params.count * 3);
+  const colors = new Float32Array(params.count * 3);
 
-// 接收阴影
-plane.receiveShadow = true;
+  for (let index = 0; index < params.count; index++) {
+    const branchAngel =
+      (index % params.branch) * ((2 * Math.PI) / params.branch);
 
-scene.add(plane);
+    // 到圆心的距离
+    const distance = Math.random() * params.radius * Math.pow(Math.random(), 3);
+    const randomX =
+      (Math.pow(Math.random() * 2 - 1, 3) * (params.radius - distance)) / 5;
+    const randomY =
+      (Math.pow(Math.random() * 2 - 1, 3) * (params.radius - distance)) / 5;
+    const randomZ =
+      (Math.pow(Math.random() * 2 - 1, 3) * (params.radius - distance)) / 5;
 
-const smallBall = new THREE.Mesh(
-  new THREE.SphereGeometry(0.1, 20, 20),
-  new MeshBasicMaterial({ color: 0xff0000 })
-);
-smallBall.position.set(2, 2, 2);
+    let current = index * 3;
+    positions[current] =
+      Math.cos(branchAngel + distance * params.rotateScal) * distance + randomX;
+    positions[current + 1] = 0 + randomY;
+    positions[current + 2] =
+      Math.sin(branchAngel + distance * params.rotateScal) * distance + randomZ;
 
-// 灯光
-// 环境光
-// const light = new THREE.AmbientLight(0xffffff, 0.5);
-// scene.add(light);
+    const mixColor = centerColor.clone();
+    mixColor.lerp(endColor, distance / params.radius);
 
-const pointLight = new THREE.PointLight(0xff0000, 80);
-pointLight.position.set(2, 2, 2);
+    colors[current] = mixColor.r;
+    colors[current + 1] = mixColor.g;
+    colors[current + 2] = mixColor.b;
+  }
 
-pointLight.castShadow = true;
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-// 阴影贴图模糊度
-pointLight.shadow.radius = 20;
-// 阴影贴图分辨率
-pointLight.shadow.mapSize.set(512, 512);
+  material = new THREE.PointsMaterial({
+    size: params.size,
+    // color: new THREE.Color(params.color),
+    sizeAttenuation: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    map: texture,
+    alphaMap: texture,
+    transparent: true,
+    vertexColors: true,
+  });
 
-smallBall.add(pointLight);
+  points = new THREE.Points(geometry, material);
+  scene.add(points);
+}
 
-scene.add(smallBall);
-
-gui.add(pointLight.position, 'x', -5, 5);
-gui.add(pointLight, 'distance', 0, 5, 0.001);
+genrateGalaxy();
 
 // 初始化渲染器
 const renderer = new THREE.WebGLRenderer();
@@ -137,15 +157,7 @@ window.addEventListener('resize', () => {
 });
 
 const clock = new THREE.Clock();
-let a = 1;
 function render() {
-  const time = clock.getElapsedTime();
-  // console.log(time);
-  a += 0.03;
-  smallBall.position.x = Math.sin(a) * 3;
-  smallBall.position.z = Math.cos(a) * 3;
-  smallBall.position.y = 2 + Math.sin(time * 5);
-
   controls.update();
   renderer.render(scene, camera);
   // 渲染下一帧的时候就会调用render函数

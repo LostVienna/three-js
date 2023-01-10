@@ -26,61 +26,30 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.set(0, 0, 10); // x y z 轴
 scene.add(camera);
 
-// 灯光阴影
-// 1、设置渲染器开启阴影的计算 renderer.shadowMap.enabled = true
-// 2、设置光照投射阴影 directionalLight.castShadow = true
-// 3、设置物体投射阴影 sphere.castShadow = true
-// 4、设置物体接收投射阴影 plane.receiveShadow = true
+const textureLoader = new THREE.TextureLoader();
+const texture = textureLoader.load('./textures/door/1.png');
 
-const sphereGeometry = new THREE.SphereGeometry(1, 20, 20);
-const material = new THREE.MeshStandardMaterial();
+const sphereGeometry = new THREE.SphereGeometry(3, 20, 20);
 
-const sphere = new THREE.Mesh(sphereGeometry, material);
-// 投射阴影
-sphere.castShadow = true;
+const pointMatail = new THREE.PointsMaterial();
+pointMatail.size = 0.1;
+pointMatail.color.set(0xfff000);
+pointMatail.map = texture;
+pointMatail.alphaMap = texture;
+pointMatail.transparent = true;
+pointMatail.depthWrite = false;
+pointMatail.blending = THREE.AdditiveBlending;
+// 相机深度而衰减
+// pointMatail.sizeAttenuation = false;
 
-scene.add(sphere);
+const points = new THREE.Points(sphereGeometry, pointMatail);
 
-// 创建平面
-const planeGeometry = new THREE.PlaneGeometry(10, 10);
-const plane = new THREE.Mesh(planeGeometry, material);
-plane.position.set(0, -1, 0);
-plane.rotation.x = -Math.PI / 2;
-
-// gui.add(plane.rotation, 'x', -Math.PI / 2, Math.PI / 2);
-
-// 接收阴影
-plane.receiveShadow = true;
-
-scene.add(plane);
-
-// 灯光
-// 环境光
-// const light = new THREE.AmbientLight(0xffffff, 0.5);
-// scene.add(light);
-
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-directionalLight.position.set(10, 10, 10);
-
-directionalLight.castShadow = true;
-
-// 阴影贴图模糊度
-directionalLight.shadow.radius = 20;
-// 阴影贴图分辨率
-directionalLight.shadow.mapSize.set(4096, 4096);
-
-// 设置平行光投射相机的属性
-directionalLight.shadow.camera.near = 0.5;
-directionalLight.shadow.camera.far = 500;
-directionalLight.shadow.camera.top = 5;
-directionalLight.shadow.camera.bottom = -5;
-directionalLight.shadow.camera.left = -5;
-directionalLight.shadow.camera.right = 5;
-
-scene.add(directionalLight);
+scene.add(points);
 
 // 初始化渲染器
 const renderer = new THREE.WebGLRenderer();
+
+renderer.physicallyCorrectLights = true;
 
 // 开启环境中的阴影贴图
 renderer.shadowMap.enabled = true;
@@ -132,6 +101,7 @@ window.addEventListener('resize', () => {
   renderer.setPixelRatio(window.devicePixelRatio);
 });
 
+const clock = new THREE.Clock();
 function render() {
   controls.update();
   renderer.render(scene, camera);
