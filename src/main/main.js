@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import * as dat from 'dat.gui';
-import { BufferAttribute } from 'three';
 
 const gui = new dat.GUI();
 
@@ -27,79 +26,43 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.set(0, 0, 10); // x y z 轴
 scene.add(camera);
 
-const params = {
-  count: 10000,
-  branch: 12,
-  radius: 5,
-  size: 0.1,
-  color: '#ff6030',
-  rotateScal: 0.3,
-  endColor: '#1b3984',
-};
+const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
+const material = new THREE.MeshBasicMaterial({
+  wireframe: true,
+});
+const redMaterial = new THREE.MeshBasicMaterial({ color: '#ff0000' });
 
-let geometry = null;
-let material = null;
-let points = null;
+let cubeArr = [];
 
-const textureLoader = new THREE.TextureLoader();
-const texture = textureLoader.load('./textures/door/1.png');
-const centerColor = new THREE.Color(params.color);
-const endColor = new THREE.Color(params.endColor);
-
-function genrateGalaxy() {
-  geometry = new THREE.BufferGeometry();
-
-  const positions = new Float32Array(params.count * 3);
-  const colors = new Float32Array(params.count * 3);
-
-  for (let index = 0; index < params.count; index++) {
-    const branchAngel =
-      (index % params.branch) * ((2 * Math.PI) / params.branch);
-
-    // 到圆心的距离
-    const distance = Math.random() * params.radius * Math.pow(Math.random(), 3);
-    const randomX =
-      (Math.pow(Math.random() * 2 - 1, 3) * (params.radius - distance)) / 5;
-    const randomY =
-      (Math.pow(Math.random() * 2 - 1, 3) * (params.radius - distance)) / 5;
-    const randomZ =
-      (Math.pow(Math.random() * 2 - 1, 3) * (params.radius - distance)) / 5;
-
-    let current = index * 3;
-    positions[current] =
-      Math.cos(branchAngel + distance * params.rotateScal) * distance + randomX;
-    positions[current + 1] = 0 + randomY;
-    positions[current + 2] =
-      Math.sin(branchAngel + distance * params.rotateScal) * distance + randomZ;
-
-    const mixColor = centerColor.clone();
-    mixColor.lerp(endColor, distance / params.radius);
-
-    colors[current] = mixColor.r;
-    colors[current + 1] = mixColor.g;
-    colors[current + 2] = mixColor.b;
+for (let x = -5; x < 5; x++) {
+  for (let y = -5; y < 5; y++) {
+    for (let z = -5; z < 5; z++) {
+      const cube = new THREE.Mesh(cubeGeometry, material);
+      cube.position.set(x, y, z);
+      scene.add(cube);
+      cubeArr.push(cube);
+    }
   }
-
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-  material = new THREE.PointsMaterial({
-    size: params.size,
-    // color: new THREE.Color(params.color),
-    sizeAttenuation: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    map: texture,
-    alphaMap: texture,
-    transparent: true,
-    vertexColors: true,
-  });
-
-  points = new THREE.Points(geometry, material);
-  scene.add(points);
 }
 
-genrateGalaxy();
+// 创建投射光线对象
+const raycaster = new THREE.Raycaster();
+
+// 鼠标位置对象
+const mouse = new THREE.Vector2();
+
+window.addEventListener('click', (event) => {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -((event.clientY / window.innerHeight) * 2 - 1);
+
+  raycaster.setFromCamera(mouse, camera);
+
+  const result = raycaster.intersectObjects(cubeArr);
+  result[0].object.material = redMaterial;
+  // result.forEach((item) => {
+  //   item.object.material = redMaterial;
+  // });
+});
 
 // 初始化渲染器
 const renderer = new THREE.WebGLRenderer();

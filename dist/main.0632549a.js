@@ -39500,61 +39500,40 @@ var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHei
 // 设置相机位置
 camera.position.set(0, 0, 10); // x y z 轴
 scene.add(camera);
-var params = {
-  count: 10000,
-  branch: 12,
-  radius: 5,
-  size: 0.1,
-  color: '#ff6030',
-  rotateScal: 0.3,
-  endColor: '#1b3984'
-};
-var geometry = null;
-var material = null;
-var points = null;
-var textureLoader = new THREE.TextureLoader();
-var texture = textureLoader.load('./textures/door/1.png');
-var centerColor = new THREE.Color(params.color);
-var endColor = new THREE.Color(params.endColor);
-function genrateGalaxy() {
-  geometry = new THREE.BufferGeometry();
-  var positions = new Float32Array(params.count * 3);
-  var colors = new Float32Array(params.count * 3);
-  for (var index = 0; index < params.count; index++) {
-    var branchAngel = index % params.branch * (2 * Math.PI / params.branch);
-
-    // 到圆心的距离
-    var distance = Math.random() * params.radius * Math.pow(Math.random(), 3);
-    var randomX = Math.pow(Math.random() * 2 - 1, 3) * (params.radius - distance) / 5;
-    var randomY = Math.pow(Math.random() * 2 - 1, 3) * (params.radius - distance) / 5;
-    var randomZ = Math.pow(Math.random() * 2 - 1, 3) * (params.radius - distance) / 5;
-    var current = index * 3;
-    positions[current] = Math.cos(branchAngel + distance * params.rotateScal) * distance + randomX;
-    positions[current + 1] = 0 + randomY;
-    positions[current + 2] = Math.sin(branchAngel + distance * params.rotateScal) * distance + randomZ;
-    var mixColor = centerColor.clone();
-    mixColor.lerp(endColor, distance / params.radius);
-    colors[current] = mixColor.r;
-    colors[current + 1] = mixColor.g;
-    colors[current + 2] = mixColor.b;
+var cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
+var material = new THREE.MeshBasicMaterial({
+  wireframe: true
+});
+var redMaterial = new THREE.MeshBasicMaterial({
+  color: '#ff0000'
+});
+var cubeArr = [];
+for (var x = -5; x < 5; x++) {
+  for (var y = -5; y < 5; y++) {
+    for (var z = -5; z < 5; z++) {
+      var cube = new THREE.Mesh(cubeGeometry, material);
+      cube.position.set(x, y, z);
+      scene.add(cube);
+      cubeArr.push(cube);
+    }
   }
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  material = new THREE.PointsMaterial({
-    size: params.size,
-    // color: new THREE.Color(params.color),
-    sizeAttenuation: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    map: texture,
-    alphaMap: texture,
-    transparent: true,
-    vertexColors: true
-  });
-  points = new THREE.Points(geometry, material);
-  scene.add(points);
 }
-genrateGalaxy();
+
+// 创建投射光线对象
+var raycaster = new THREE.Raycaster();
+
+// 鼠标位置对象
+var mouse = new THREE.Vector2();
+window.addEventListener('click', function (event) {
+  mouse.x = event.clientX / window.innerWidth * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight * 2 - 1);
+  raycaster.setFromCamera(mouse, camera);
+  var result = raycaster.intersectObjects(cubeArr);
+  result[0].object.material = redMaterial;
+  // result.forEach((item) => {
+  //   item.object.material = redMaterial;
+  // });
+});
 
 // 初始化渲染器
 var renderer = new THREE.WebGLRenderer();
