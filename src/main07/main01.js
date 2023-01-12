@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import * as dat from 'dat.gui';
 
-const gui = new dat.GUI();
+import * as CANNON from 'cannon-es';
+import { Mesh } from 'three';
 
+const audio = new Audio('../assets/audio/hit.mp3');
 // 创建场景
 const scene = new THREE.Scene();
 
@@ -16,87 +17,101 @@ const scene = new THREE.Scene();
  */
 
 const camera = new THREE.PerspectiveCamera(
-  45,
+  85,
   window.innerWidth / window.innerHeight,
-  1,
-  1000
+  0.1,
+  300
 );
 
 // 设置相机位置
-camera.position.set(0, 0, 10); // x y z 轴
+camera.position.set(0, 0, 18); // x y z 轴
 scene.add(camera);
 
-// 灯光阴影
-// 1、设置渲染器开启阴影的计算 renderer.shadowMap.enabled = true
-// 2、设置光照投射阴影 spotLight.castShadow = true
-// 3、设置物体投射阴影 sphere.castShadow = true
-// 4、设置物体接收投射阴影 plane.receiveShadow = true
-
 const sphereGeometry = new THREE.SphereGeometry(1, 20, 20);
-const material = new THREE.MeshStandardMaterial();
-
-const sphere = new THREE.Mesh(sphereGeometry, material);
-// 投射阴影
+const sphereMaterial = new THREE.MeshStandardMaterial();
+const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
 sphere.castShadow = true;
-
 scene.add(sphere);
 
-// 创建平面
-const planeGeometry = new THREE.PlaneGeometry(50, 50);
-const plane = new THREE.Mesh(planeGeometry, material);
-plane.position.set(0, -1, 0);
-plane.rotation.x = -Math.PI / 2;
+const floor = new Mesh(
+  new THREE.PlaneGeometry(20, 20),
+  new THREE.MeshStandardMaterial({ side: THREE.DoubleSide })
+);
 
-// 接收阴影
-plane.receiveShadow = true;
+floor.rotation.x = -Math.PI / 2;
+floor.position.set(0, -5, 0);
 
-scene.add(plane);
+floor.receiveShadow = true;
+scene.add(floor);
 
-// 灯光
-// 环境光
-// const light = new THREE.AmbientLight(0xffffff, 0.5);
-// scene.add(light);
+// 创建物理世界
+// const world = new CANNON.World({ gravity: 9.8 });
 
-const spotLight = new THREE.SpotLight(0xffffff, 2);
-spotLight.position.set(10, 10, 10);
+const world = new CANNON.World();
+world.gravity.set(0, -9.8, 0);
 
-spotLight.castShadow = true;
+// 创建物理小球形状
+const sphereShape = new CANNON.Sphere(1);
 
-// 阴影贴图模糊度
-spotLight.shadow.radius = 20;
-// 阴影贴图分辨率
-spotLight.shadow.mapSize.set(4096, 4096);
+const sphereWorldMaterail = new CANNON.Material('sphere');
 
-spotLight.target = sphere;
+const sphereBody = new CANNON.Body({
+  shape: sphereShape,
+  position: new CANNON.Vec3(0, 0, 0),
 
-spotLight.angle = Math.PI / 6;
+  // 质量
+  mass: 1,
+  material: sphereWorldMaterail,
+});
 
-spotLight.distance = 0;
+// 监听碰撞
+sphereBody.addEventListener('collide', (e) => {
+  const impactDtrenght = e.contact.getImpactVelocityAlongNormal();
+  console.log(impactDtrenght);
+  audio.currentTime = 0;
+  audio.play();
+});
 
-spotLight.penumbra = 0;
+world.addBody(sphereBody);
 
-spotLight.decay = 0; // renderer.physicallyCorrectLights为true才生效
+// 创建物理地面
+const floorShape = new CANNON.Plane();
+const floorWorldMaterail = new CANNON.Material('floor');
+const floorBody = new CANNON.Body({
+  shape: floorShape,
+  mass: 0, // 质量为0，物体保持不动
+  position: new CANNON.Vec3(0, -5, 0),
+  material: floorWorldMaterail,
+});
 
-// 设置透射相机的属性
-// spotLight.shadow.camera.near = 0.5;
-// spotLight.shadow.camera.far = 500;
-// spotLight.shadow.camera.fov = 500;
+floorBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
 
-scene.add(spotLight);
+world.addBody(floorBody);
 
-gui.add(sphere.position, 'x', -50, 50);
-gui.add(spotLight, 'angle', 0, Math.PI / 2);
-gui.add(spotLight, 'distance', 0, 10, 0.01);
-gui.add(spotLight, 'penumbra', 0, 1, 0.01);
-gui.add(spotLight, 'decay', 0, 5, 0.01);
+// 关联材质
+const defaultContactMaterail = new CANNON.ContactMaterial(
+  sphereWorldMaterail,
+  floorWorldMaterail,
+  {
+    friction: 0.1, // 摩擦力
+    restitution: 0.7, // 弹性
+  }
+);
+
+world.addContactMaterial(defaultContactMaterail);
+
+// 添加环境光和平行光
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+const dirLight = new THREE.DirectionalLight();
+dirLight.castShadow = true;
+scene.add(dirLight);
 
 // 初始化渲染器
-const renderer = new THREE.WebGLRenderer();
+const renderer = new THREE.WebGLRenderer({ alpha: true });
 
 // 开启环境中的阴影贴图
 renderer.shadowMap.enabled = true;
-
-renderer.physicallyCorrectLights = true;
 
 // 设置渲染尺寸大小
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -145,8 +160,14 @@ window.addEventListener('resize', () => {
   renderer.setPixelRatio(window.devicePixelRatio);
 });
 
+const clock = new THREE.Clock();
 function render() {
   controls.update();
+  const deltaTime = clock.getDelta();
+
+  world.step(1 / 120, deltaTime);
+  sphere.position.copy(sphereBody.position);
+
   renderer.render(scene, camera);
   // 渲染下一帧的时候就会调用render函数
   requestAnimationFrame(render);

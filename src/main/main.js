@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import * as dat from 'dat.gui';
-import gsap from 'gsap';
 
-const gui = new dat.GUI();
+import * as CANNON from 'cannon-es';
+import { Mesh } from 'three';
 
+const audio = new Audio('../assets/audio/hit.mp3');
 // 创建场景
 const scene = new THREE.Scene();
 
@@ -27,130 +27,106 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.set(0, 0, 18); // x y z 轴
 scene.add(camera);
 
-const cubeGeometry = new THREE.BoxGeometry(2, 2, 2);
-const cubeMaterial = new THREE.MeshBasicMaterial({
-  wireframe: true,
-});
-const redMaterial = new THREE.MeshBasicMaterial({ color: '#ff0000' });
-
-let cubeArr = [];
-const cubeGround = new THREE.Group();
-for (let x = 0; x < 5; x++) {
-  for (let y = 0; y < 5; y++) {
-    for (let z = 0; z < 5; z++) {
-      const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-      cube.position.set(x * 2 - 4, y * 2 - 4, z * 2 - 4);
-      cubeGround.add(cube);
-      cubeArr.push(cube);
-    }
-  }
-}
-scene.add(cubeGround);
-// 创建投射光线对象
-const raycaster = new THREE.Raycaster();
-
-// 鼠标位置对象
-const mouse = new THREE.Vector2();
-
-window.addEventListener('click', (event) => {
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -((event.clientY / window.innerHeight) * 2 - 1);
-
-  raycaster.setFromCamera(mouse, camera);
-
-  const result = raycaster.intersectObjects(cubeArr);
-  result[0].object.material = redMaterial;
-  // result.forEach((item) => {
-  //   item.object.material = redMaterial;
-  // });
-});
-
-// 三角形
-const sjxGrounp = new THREE.Group();
-for (let x = 0; x < 50; x++) {
-  const geometry = new THREE.BufferGeometry();
-  const positionArr = new Float32Array(9);
-  for (let y = 0; y < 9; y++) {
-    if (y % 3 == 1) {
-      positionArr[y] = Math.random() * 10 - 5;
-    } else {
-      positionArr[y] = Math.random() * 10 - 5;
-    }
-  }
-
-  geometry.setAttribute('position', new THREE.BufferAttribute(positionArr, 3));
-  // 创建材质
-  const color = new THREE.Color(Math.random(), Math.random(), Math.random());
-  const material = new THREE.MeshBasicMaterial({
-    color,
-    transparent: true,
-    opacity: 0.5,
-    side: THREE.DoubleSide,
-  });
-  const mesh = new THREE.Mesh(geometry, material);
-  sjxGrounp.add(mesh);
-}
-sjxGrounp.position.set(0, -30, 0);
-scene.add(sjxGrounp);
-
-// 弹跳小球
-const ballGrounp = new THREE.Group();
-
-const sphereGeometry = new THREE.SphereGeometry(1, 20, 20);
-const material = new THREE.MeshStandardMaterial();
-
-const sphere = new THREE.Mesh(sphereGeometry, material);
-// 投射阴影
-sphere.castShadow = true;
-
-ballGrounp.add(sphere);
-
-// 创建平面
-const planeGeometry = new THREE.PlaneGeometry(20, 20);
-const plane = new THREE.Mesh(planeGeometry, material);
-plane.position.set(0, -1, 0);
-plane.rotation.x = -Math.PI / 2;
-
-// 接收阴影
-plane.receiveShadow = true;
-
-ballGrounp.add(plane);
-
-const smallBall = new THREE.Mesh(
-  new THREE.SphereGeometry(0.1, 20, 20),
-  new THREE.MeshBasicMaterial({ color: 0xff0000 })
+const floor = new Mesh(
+  new THREE.PlaneGeometry(20, 20),
+  new THREE.MeshStandardMaterial({ side: THREE.DoubleSide })
 );
-smallBall.position.set(2, 2, 2);
 
-// 灯光
-// 环境光
-// const light = new THREE.AmbientLight(0xffffff, 0.5);
-// scene.add(light);
+floor.rotation.x = -Math.PI / 2;
+floor.position.set(0, -5, 0);
 
-const pointLight = new THREE.PointLight(0xff0000, 20);
-pointLight.position.set(2, 2, 2);
+floor.receiveShadow = true;
+scene.add(floor);
 
-pointLight.castShadow = true;
+// 创建物理世界
+// const world = new CANNON.World({ gravity: 9.8 });
 
-// 阴影贴图模糊度
-pointLight.shadow.radius = 20;
-// 阴影贴图分辨率
-pointLight.shadow.mapSize.set(512, 512);
+const world = new CANNON.World();
+world.gravity.set(0, -9.8, 0);
 
-smallBall.add(pointLight);
-ballGrounp.add(smallBall);
+const cubeArr = [];
+const cubeWorldMaterail = new CANNON.Material('cube');
 
-ballGrounp.position.set(0, -60, 0);
-scene.add(ballGrounp);
+function createCube() {
+  const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
+  const cubeMaterial = new THREE.MeshStandardMaterial();
+  const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+  cube.castShadow = true;
+  scene.add(cube);
+
+  // 创建物理小球形状
+  const cubeShape = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));
+
+  const cubeBody = new CANNON.Body({
+    shape: cubeShape,
+    position: new CANNON.Vec3(0, 0, 0),
+
+    // 质量
+    mass: 1,
+    material: cubeWorldMaterail,
+  });
+  cubeBody.applyLocalForce(
+    new CANNON.Vec3(500, 0, 0), // 添加力的大小和方向
+    new CANNON.Vec3(0, 0, 0) // 施加力所在的位置
+  );
+  world.addBody(cubeBody);
+
+  cubeArr.push({
+    cubeBody,
+    mesh: cube,
+  });
+
+  // 监听碰撞
+  cubeBody.addEventListener('collide', (e) => {
+    const impactDtrenght = e.contact.getImpactVelocityAlongNormal();
+    console.log(impactDtrenght);
+    audio.currentTime = 0;
+    // audio.volume = impactDtrenght / 12; // 设置声量随碰撞减弱
+    audio.volume = Math.random(); // 设置声量随碰撞减弱
+    audio.play();
+  });
+}
+
+// 创建物理地面
+const floorShape = new CANNON.Plane();
+const floorWorldMaterail = new CANNON.Material('floor');
+const floorBody = new CANNON.Body({
+  shape: floorShape,
+  mass: 0, // 质量为0，物体保持不动
+  position: new CANNON.Vec3(0, -5, 0),
+  material: floorWorldMaterail,
+});
+
+floorBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+
+world.addBody(floorBody);
+
+// 关联材质
+const defaultContactMaterail = new CANNON.ContactMaterial(
+  cubeWorldMaterail,
+  floorWorldMaterail,
+  {
+    friction: 0.1, // 摩擦力
+    restitution: 0.7, // 弹性
+  }
+);
+
+world.addContactMaterial(defaultContactMaterail);
+
+// 设置world默认材质
+
+// 添加环境光和平行光
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+const dirLight = new THREE.DirectionalLight();
+dirLight.castShadow = true;
+scene.add(dirLight);
 
 // 初始化渲染器
 const renderer = new THREE.WebGLRenderer({ alpha: true });
 
-renderer.physicallyCorrectLights = true;
-
 // 开启环境中的阴影贴图
 renderer.shadowMap.enabled = true;
-renderer.physicallyCorrectLights = true;
 
 // 设置渲染尺寸大小
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -162,9 +138,9 @@ document.body.appendChild(renderer.domElement);
 // renderer.render(scene, camera);
 
 // 创建轨道控制器
-// const controls = new OrbitControls(camera, renderer.domElement);
-// // 增加阻尼，拖动具有惯性效果
-// controls.enableDamping = true;
+const controls = new OrbitControls(camera, renderer.domElement);
+// 增加阻尼，拖动具有惯性效果
+controls.enableDamping = true;
 
 // 添加坐标轴
 const axesHelper = new THREE.AxesHelper(5);
@@ -199,97 +175,23 @@ window.addEventListener('resize', () => {
   renderer.setPixelRatio(window.devicePixelRatio);
 });
 
-gsap.to(cubeGround.position, {
-  z: `+=${Math.PI}`,
-  x: `+=${Math.PI}`,
-  duration: 6,
-  ease: 'power2.inOut',
-  repeat: -1,
-  yoyo: true,
-});
-
-gsap.to(sjxGrounp.position, {
-  z: `+=${Math.PI}`,
-  x: `-=${Math.PI}`,
-  duration: 6,
-  ease: 'power2.inOut',
-  repeat: -1,
-  yoyo: true,
-});
-
-gsap.to(smallBall.position, {
-  x: -3,
-  duration: 6,
-  ease: 'power2.inOut',
-  repeat: -1,
-  yoyo: true,
-});
-gsap.to(smallBall.position, {
-  y: 0,
-  duration: 0.5,
-  ease: 'power2.inOut',
-  repeat: -1,
-  yoyo: true,
-});
-
-window.addEventListener('mouseover', (event) => {
-  mouse.x = event.clientX / window.innerWidth - 0.5;
-  mouse.y = event.clientY / window.innerHeight - 0.5;
-});
-
 const clock = new THREE.Clock();
 function render() {
-  // controls.update();
+  controls.update();
   const deltaTime = clock.getDelta();
-  // cubeGround.rotation.x = time * 0.5;
-  // cubeGround.rotation.y = time * 0.5;
 
-  // sjxGrounp.rotation.x = time * 0.4;
-  // sjxGrounp.rotation.y = time * 0.3;
+  world.step(1 / 120, deltaTime);
 
-  // smallBall.position.x = Math.sin(time) * 3;
-  // smallBall.position.z = Math.cos(time) * 3;
-  // smallBall.position.y = 2 + Math.sin(time * 5);
-  // ballGrounp.rotation.z = Math.sin(time) * 0.1;
-  // ballGrounp.rotation.x = Math.sin(time) * 0.1;
-  camera.position.y = -(window.scrollY / window.innerHeight) * 30;
-  camera.position.x += (mouse.x * 10 - camera.position.x) * deltaTime * 5;
-  // camera.position.x += mouse.x * 10 * deltaTime;
+  cubeArr.forEach((item) => {
+    item.mesh.position.copy(item.cubeBody.position);
+    // 设置渲染的物体随物理的物体旋转
+    item.mesh.quaternion.copy(item.cubeBody.quaternion);
+  });
 
   renderer.render(scene, camera);
   // 渲染下一帧的时候就会调用render函数
   requestAnimationFrame(render);
 }
 
-let currentPage = 0;
-const groupArr = [cubeGround, sjxGrounp, ballGrounp];
-window.addEventListener('scroll', () => {
-  const newPage = Math.round(window.scrollY / window.innerHeight);
-  if (newPage != currentPage) {
-    currentPage = newPage;
-    console.log('页面更该', currentPage);
-
-    gsap.to(groupArr[currentPage].rotation, {
-      z: `+=${Math.PI * 2}`,
-      x: `+=${Math.PI * 2}`,
-      duration: 2,
-      onComplete() {
-        console.log('旋转完成');
-      },
-    });
-
-    gsap.fromTo(
-      `.page${currentPage + 1} h1`,
-      {
-        x: -300,
-      },
-      {
-        x: 0,
-        rotate: '+=360',
-        duration: 1.5,
-      }
-    );
-  }
-});
-
+window.addEventListener('click', createCube);
 render();

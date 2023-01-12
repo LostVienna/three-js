@@ -6,7 +6,7 @@
 body {
   background-color: rgb(27, 41, 46);
 }
-canvas {
+/* canvas {
   position: fixed;
   top: 0;
   left: 0;
@@ -28,7 +28,7 @@ canvas {
 
 ::-webkit-scrollbar {
   display: none;
-}
+} */
 
 
 /*# sourceMappingURL=/style.a11e3109.css.map */
