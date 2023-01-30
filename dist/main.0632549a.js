@@ -36993,17 +36993,17 @@ var MapControls = /*#__PURE__*/function (_OrbitControls) {
   return _createClass(MapControls);
 }(OrbitControls);
 exports.MapControls = MapControls;
-},{"three":"../node_modules/three/build/three.module.js"}],"shader/raw/vertex.glsl":[function(require,module,exports) {
-module.exports = "precision lowp float;\n#define GLSLIFY 1\nattribute vec3 position;\nattribute vec2 uv;\n\nuniform mat4 modelMatrix;\nuniform mat4 viewMatrix;\nuniform mat4 projectionMatrix;\n\nvarying vec2 vUv;\nvarying float eElevation;\n\n// 获取时间\nuniform float uTime;\n\nvoid main() {\n  vUv = uv;\n  vec4 modelPosition =  modelMatrix * vec4(position, 1.0);\n  modelPosition.z = sin((modelPosition.x + uTime) * 10.0) * 0.05;\n  modelPosition.z += sin((modelPosition.y + uTime) * 10.0) * 0.05;\n  eElevation = modelPosition.z;\n  gl_Position = projectionMatrix * viewMatrix * modelPosition;\n}";
-},{}],"shader/raw/fragment.glsl":[function(require,module,exports) {
-module.exports = "    \nprecision lowp float;\n#define GLSLIFY 1\nvarying vec2 vUv;\nvarying float eElevation;\n\nuniform sampler2D uTexture;\n\nvoid main() {\n  // 越低越黑，越高越红\n  // float height = eElevation + 0.05 * 10.0; \n  // gl_FragColor = vec4(vUv, 0.0, 1.0);\n  // gl_FragColor = vec4(1.0 * height,0.0, 0.0, 1.0);\n\n  // 根据UV，取出对应颜色\n  vec4 textureColor = texture2D(uTexture, vUv);\n  float height = eElevation + 0.05 * 10.0;\n  textureColor.rgba *= height;\n  gl_FragColor = textureColor;\n}";
+},{"three":"../node_modules/three/build/three.module.js"}],"shader/deep/vertex.glsl":[function(require,module,exports) {
+module.exports = "varying vec2 vUv;\n\nprecision lowp float;\n#define GLSLIFY 1\n\nvoid main() {\n  vec4 modelPosition =  modelMatrix * vec4(position, 1.0);\n  vUv = uv;\n  gl_Position = projectionMatrix * viewMatrix * modelPosition;\n}";
+},{}],"shader/deep/fragment.glsl":[function(require,module,exports) {
+module.exports = "    \nprecision highp float;\n#define GLSLIFY 1\nvarying vec2 vUv;\n\n// 获取时间\nuniform float uTime;\n\nvoid main() {\n\n  // gl_FragColor = vec4(vUv,1,0);\n\n  // float strength = vUv.x;\n  // gl_FragColor = vec4(strength,strength,strength,1);\n\n  // float strength = 1.0 - vUv.y;\n  // gl_FragColor = vec4(strength,strength,strength,1);\n\n  // 反复渐变效果\n  // float strength = mod(vUv.y * 10.0, 1.0);\n  // gl_FragColor = vec4(strength,strength,strength,1);\n\n  // step\n  // float strength = mod(vUv.y * 10.0, 1.0);\n  // strength = step(0.5, strength);\n  // gl_FragColor = vec4(strength,strength,strength,1);\n\n  // float strength = step(0.8, mod((vUv.x + uTime * 0.1) * 10.0, 1.0));\n  // strength -= step(0.8, mod(vUv.y * 10.0, 1.0));\n  // gl_FragColor = vec4(strength,strength,strength,1);\n\n  // float strength = abs(vUv.x - 0.5);\n  // gl_FragColor = vec4(strength,strength,strength,1);\n\n  // float strength = min(abs(vUv.x - 0.5),abs(vUv.y - 0.5));\n  // float strength = max(abs(vUv.x - 0.5),abs(vUv.y - 0.5));\n  // gl_FragColor = vec4(strength,strength,strength,1);\n\n  // float strength = floor(vUv.x * 10.0)/10.0;\n  // float strength = floor(vUv.x * 10.0)/10.0 * floor(vUv.y * 10.0)/10.0;\n  // float strength = ceil(vUv.x * 10.0)/10.0 * floor(vUv.y * 10.0)/10.0;\n  // gl_FragColor = vec4(strength,strength,strength,1);\n\n  // length\n  // float strength = length(vUv);\n  // gl_FragColor = vec4(strength,strength,strength,1);.\n\n  // distance\n  // float strength = 1.0 - distance(vUv, vec2(0.5,0.5));\n  // float strength = 0.15 / distance(vUv, vec2(0.5,0.5));\n  // float strength = 0.15 / distance(vUv, vec2(0.5,0.5)) - 1.0;\n  // float strength = 0.15 / distance(vec2(vUv.x, vUv.y * 5.0), vec2(0.5,0.5));\n  // gl_FragColor = vec4(strength,strength,strength,1);\n\n  float strength = 0.15 / distance(vec2(vUv.x, (vUv.y - 0.5) * 5.0 + 0.5), vec2(0.5,0.5));\n  strength += 0.15 / distance(vec2(vUv.y, (vUv.x - 0.5) * 5.0 + 0.5), vec2(0.5,0.5));\n  gl_FragColor = vec4(strength,strength,strength,strength);\n\n}";
 },{}],"main/main.js":[function(require,module,exports) {
 "use strict";
 
 var THREE = _interopRequireWildcard(require("three"));
 var _OrbitControls = require("three/examples/jsm/controls/OrbitControls");
-var _vertex = _interopRequireDefault(require("../shader/raw/vertex.glsl"));
-var _fragment = _interopRequireDefault(require("../shader/raw/fragment.glsl"));
+var _vertex = _interopRequireDefault(require("../shader/deep/vertex.glsl"));
+var _fragment = _interopRequireDefault(require("../shader/deep/fragment.glsl"));
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 function _getRequireWildcardCache(nodeInterop) { if (typeof WeakMap !== "function") return null; var cacheBabelInterop = new WeakMap(); var cacheNodeInterop = new WeakMap(); return (_getRequireWildcardCache = function (nodeInterop) { return nodeInterop ? cacheNodeInterop : cacheBabelInterop; })(nodeInterop); }
 function _interopRequireWildcard(obj, nodeInterop) { if (!nodeInterop && obj && obj.__esModule) { return obj; } if (obj === null || typeof obj !== "object" && typeof obj !== "function") { return { default: obj }; } var cache = _getRequireWildcardCache(nodeInterop); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj.default = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
@@ -37023,24 +37023,17 @@ var camera = new THREE.PerspectiveCamera(10, window.innerWidth / window.innerHei
 // 设置相机位置
 camera.position.set(0, 0, 18); // x y z 轴
 scene.add(camera);
-var textureLoader = new THREE.TextureLoader();
-var texture = textureLoader.load('./textures/shader/1.jpg');
 var floorGeometry = new THREE.PlaneGeometry(1, 1, 64, 64);
-var floorRawMaterial = new THREE.RawShaderMaterial({
+var floorDeepMaterial = new THREE.ShaderMaterial({
   vertexShader: _vertex.default,
   fragmentShader: _fragment.default,
-  // wireframe: true,
-  side: THREE.DoubleSide,
   uniforms: {
     uTime: {
       value: 0
-    },
-    uTexture: {
-      value: texture
     }
   }
 });
-var floor = new THREE.Mesh(floorGeometry, floorRawMaterial);
+var floor = new THREE.Mesh(floorGeometry, floorDeepMaterial);
 scene.add(floor);
 
 // 初始化渲染器
@@ -37100,13 +37093,13 @@ var clock = new THREE.Clock();
 function render() {
   var elapsedTime = clock.getElapsedTime();
   controls.update();
-  floorRawMaterial.uniforms.uTime.value = elapsedTime;
+  floorDeepMaterial.uniforms.uTime.value = elapsedTime;
   renderer.render(scene, camera);
   // 渲染下一帧的时候就会调用render函数
   requestAnimationFrame(render);
 }
 render();
-},{"three":"../node_modules/three/build/three.module.js","three/examples/jsm/controls/OrbitControls":"../node_modules/three/examples/jsm/controls/OrbitControls.js","../shader/raw/vertex.glsl":"shader/raw/vertex.glsl","../shader/raw/fragment.glsl":"shader/raw/fragment.glsl"}],"../node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"three":"../node_modules/three/build/three.module.js","three/examples/jsm/controls/OrbitControls":"../node_modules/three/examples/jsm/controls/OrbitControls.js","../shader/deep/vertex.glsl":"shader/deep/vertex.glsl","../shader/deep/fragment.glsl":"shader/deep/fragment.glsl"}],"../node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -37131,7 +37124,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "50261" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "55546" + '/');
   ws.onmessage = function (event) {
     checkedAssets = {};
     assetsToAccept = [];

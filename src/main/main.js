@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-import rawVertexShader from '../shader/raw/vertex.glsl';
-import rawFragmentShader from '../shader/raw/fragment.glsl';
+import deepVertexShader from '../shader/deep/vertex.glsl';
+import deepFragmentShader from '../shader/deep/fragment.glsl';
 
 // 创建场景
 const scene = new THREE.Scene();
@@ -26,27 +26,19 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.set(0, 0, 18); // x y z 轴
 scene.add(camera);
 
-const textureLoader = new THREE.TextureLoader();
-const texture = textureLoader.load('./textures/shader/1.jpg');
-
 const floorGeometry = new THREE.PlaneGeometry(1, 1, 64, 64);
 
-const floorRawMaterial = new THREE.RawShaderMaterial({
-  vertexShader: rawVertexShader,
-  fragmentShader: rawFragmentShader,
-  // wireframe: true,
-  side: THREE.DoubleSide,
+const floorDeepMaterial = new THREE.ShaderMaterial({
+  vertexShader: deepVertexShader,
+  fragmentShader: deepFragmentShader,
   uniforms: {
     uTime: {
       value: 0,
     },
-    uTexture: {
-      value: texture,
-    },
   },
 });
 
-const floor = new THREE.Mesh(floorGeometry, floorRawMaterial);
+const floor = new THREE.Mesh(floorGeometry, floorDeepMaterial);
 
 scene.add(floor);
 
@@ -108,7 +100,7 @@ function render() {
   const elapsedTime = clock.getElapsedTime();
   controls.update();
 
-  floorRawMaterial.uniforms.uTime.value = elapsedTime;
+  floorDeepMaterial.uniforms.uTime.value = elapsedTime;
 
   renderer.render(scene, camera);
   // 渲染下一帧的时候就会调用render函数
