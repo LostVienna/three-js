@@ -1,10 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-import * as CANNON from 'cannon-es';
-import { Mesh } from 'three';
+import rawVertexShader from '../shader/raw/vertex.glsl';
+import rawFragmentShader from '../shader/raw/fragment.glsl';
 
-const audio = new Audio('../assets/audio/hit.mp3');
 // 创建场景
 const scene = new THREE.Scene();
 
@@ -17,110 +16,39 @@ const scene = new THREE.Scene();
  */
 
 const camera = new THREE.PerspectiveCamera(
-  85,
+  10,
   window.innerWidth / window.innerHeight,
   0.1,
-  300
+  400
 );
 
 // 设置相机位置
 camera.position.set(0, 0, 18); // x y z 轴
 scene.add(camera);
 
-const floor = new Mesh(
-  new THREE.PlaneGeometry(20, 20),
-  new THREE.MeshStandardMaterial({ side: THREE.DoubleSide })
-);
+const textureLoader = new THREE.TextureLoader();
+const texture = textureLoader.load('./textures/shader/1.jpg');
 
-floor.rotation.x = -Math.PI / 2;
-floor.position.set(0, -5, 0);
+const floorGeometry = new THREE.PlaneGeometry(1, 1, 64, 64);
 
-floor.receiveShadow = true;
-scene.add(floor);
-
-// 创建物理世界
-// const world = new CANNON.World({ gravity: 9.8 });
-
-const world = new CANNON.World();
-world.gravity.set(0, -9.8, 0);
-
-const cubeArr = [];
-const cubeWorldMaterail = new CANNON.Material('cube');
-
-function createCube() {
-  const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
-  const cubeMaterial = new THREE.MeshStandardMaterial();
-  const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-  cube.castShadow = true;
-  scene.add(cube);
-
-  // 创建物理小球形状
-  const cubeShape = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));
-
-  const cubeBody = new CANNON.Body({
-    shape: cubeShape,
-    position: new CANNON.Vec3(0, 0, 0),
-
-    // 质量
-    mass: 1,
-    material: cubeWorldMaterail,
-  });
-  cubeBody.applyLocalForce(
-    new CANNON.Vec3(500, 0, 0), // 添加力的大小和方向
-    new CANNON.Vec3(0, 0, 0) // 施加力所在的位置
-  );
-  world.addBody(cubeBody);
-
-  cubeArr.push({
-    cubeBody,
-    mesh: cube,
-  });
-
-  // 监听碰撞
-  cubeBody.addEventListener('collide', (e) => {
-    const impactDtrenght = e.contact.getImpactVelocityAlongNormal();
-    console.log(impactDtrenght);
-    audio.currentTime = 0;
-    // audio.volume = impactDtrenght / 12; // 设置声量随碰撞减弱
-    audio.volume = Math.random(); // 设置声量随碰撞减弱
-    audio.play();
-  });
-}
-
-// 创建物理地面
-const floorShape = new CANNON.Plane();
-const floorWorldMaterail = new CANNON.Material('floor');
-const floorBody = new CANNON.Body({
-  shape: floorShape,
-  mass: 0, // 质量为0，物体保持不动
-  position: new CANNON.Vec3(0, -5, 0),
-  material: floorWorldMaterail,
+const floorRawMaterial = new THREE.RawShaderMaterial({
+  vertexShader: rawVertexShader,
+  fragmentShader: rawFragmentShader,
+  // wireframe: true,
+  side: THREE.DoubleSide,
+  uniforms: {
+    uTime: {
+      value: 0,
+    },
+    uTexture: {
+      value: texture,
+    },
+  },
 });
 
-floorBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+const floor = new THREE.Mesh(floorGeometry, floorRawMaterial);
 
-world.addBody(floorBody);
-
-// 关联材质
-const defaultContactMaterail = new CANNON.ContactMaterial(
-  cubeWorldMaterail,
-  floorWorldMaterail,
-  {
-    friction: 0.1, // 摩擦力
-    restitution: 0.7, // 弹性
-  }
-);
-
-world.addContactMaterial(defaultContactMaterail);
-
-// 设置world默认材质
-
-// 添加环境光和平行光
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambientLight);
-const dirLight = new THREE.DirectionalLight();
-dirLight.castShadow = true;
-scene.add(dirLight);
+scene.add(floor);
 
 // 初始化渲染器
 const renderer = new THREE.WebGLRenderer({ alpha: true });
@@ -177,21 +105,14 @@ window.addEventListener('resize', () => {
 
 const clock = new THREE.Clock();
 function render() {
+  const elapsedTime = clock.getElapsedTime();
   controls.update();
-  const deltaTime = clock.getDelta();
 
-  world.step(1 / 120, deltaTime);
-
-  cubeArr.forEach((item) => {
-    item.mesh.position.copy(item.cubeBody.position);
-    // 设置渲染的物体随物理的物体旋转
-    item.mesh.quaternion.copy(item.cubeBody.quaternion);
-  });
+  floorRawMaterial.uniforms.uTime.value = elapsedTime;
 
   renderer.render(scene, camera);
   // 渲染下一帧的时候就会调用render函数
   requestAnimationFrame(render);
 }
 
-window.addEventListener('click', createCube);
 render();
