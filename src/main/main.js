@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import gsap from 'gsap';
+import * as dat from 'dat.gui';
 
-import vertexShader from '../shader/flylight/vertex.glsl';
-import fragmentShader from '../shader/flylight/fragment.glsl';
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import vertexShader from '../shader/water/vertex.glsl';
+import fragmentShader from '../shader/water/fragment.glsl';
+
+//创建gui对象
+const gui = new dat.GUI();
 
 // 创建场景
 const scene = new THREE.Scene();
@@ -29,68 +31,164 @@ const camera = new THREE.PerspectiveCamera(
 camera.position.set(0, 0, 2); // x y z 轴
 scene.add(camera);
 
-// 创建纹理加载器对象
-const rgbeLoader = new RGBELoader();
-rgbeLoader.loadAsync('./assets/2k.hdr').then((texture) => {
-  texture.mapping = THREE.EquirectangularReflectionMapping;
-  scene.background = texture;
-  scene.environment = texture;
+const params = {
+  uWaresFrequency: 14,
+  uScale: 0.03,
+  uXzScale: 1.5,
+  uNoiseFrequency: 10,
+  uNoiseScale: 1.5,
+  uLowColor: '#ff0000',
+  uHighColor: '#ffff00',
+  uXspeed: 1,
+  uZspeed: 1,
+  uNoiseSpeed: 1,
+  uOpacity: 1,
+};
+
+gui
+  .add(params, 'uWaresFrequency')
+  .min(1)
+  .max(100)
+  .step(0.1)
+  .onChange((value) => {
+    shaderMaterial.uniforms.uWaresFrequency.value = value;
+  });
+
+gui
+  .add(params, 'uScale')
+  .min(0)
+  .max(0.2)
+  .step(0.001)
+  .onChange((value) => {
+    shaderMaterial.uniforms.uScale.value = value;
+  });
+
+gui
+  .add(params, 'uNoiseFrequency')
+  .min(1)
+  .max(100)
+  .step(0.1)
+  .onChange((value) => {
+    shaderMaterial.uniforms.uNoiseFrequency.value = value;
+  });
+
+gui
+  .add(params, 'uNoiseScale')
+  .min(0)
+  .max(5)
+  .step(0.001)
+  .onChange((value) => {
+    shaderMaterial.uniforms.uNoiseScale.value = value;
+  });
+
+gui
+  .add(params, 'uXzScale')
+  .min(0)
+  .max(5)
+  .step(0.01)
+  .onChange((value) => {
+    shaderMaterial.uniforms.uXzScale.value = value;
+  });
+
+gui.addColor(params, 'uLowColor').onFinishChange((value) => {
+  shaderMaterial.uniforms.uLowColor.value = new THREE.Color(value);
+});
+gui.addColor(params, 'uHighColor').onFinishChange((value) => {
+  shaderMaterial.uniforms.uHighColor.value = new THREE.Color(value);
 });
 
+gui
+  .add(params, 'uXspeed')
+  .min(0)
+  .max(5)
+  .step(0.001)
+  .onChange((value) => {
+    shaderMaterial.uniforms.uXspeed.value = value;
+  });
+
+gui
+  .add(params, 'uZspeed')
+  .min(0)
+  .max(5)
+  .step(0.001)
+  .onChange((value) => {
+    shaderMaterial.uniforms.uZspeed.value = value;
+  });
+
+gui
+  .add(params, 'uNoiseSpeed')
+  .min(0)
+  .max(5)
+  .step(0.001)
+  .onChange((value) => {
+    shaderMaterial.uniforms.uNoiseSpeed.value = value;
+  });
+
+gui
+  .add(params, 'uOpacity')
+  .min(0)
+  .max(1)
+  .step(0.01)
+  .onChange((value) => {
+    shaderMaterial.uniforms.uOpacity.value = value;
+  });
+
+// 创建着色器材质;
 const shaderMaterial = new THREE.ShaderMaterial({
   vertexShader: vertexShader,
   fragmentShader: fragmentShader,
-  // transparent: true,
   side: THREE.DoubleSide,
-  uniforms: {},
+  uniforms: {
+    uWaresFrequency: {
+      value: params.uWaresFrequency,
+    },
+    uScale: {
+      value: params.uScale,
+    },
+    uNoiseFrequency: {
+      value: params.uNoiseFrequency,
+    },
+    uNoiseScale: {
+      value: params.uNoiseScale,
+    },
+    uXzScale: {
+      value: params.uXzScale,
+    },
+    uTime: {
+      value: params.uTime,
+    },
+    uLowColor: {
+      value: new THREE.Color(params.uLowColor),
+    },
+    uHighColor: {
+      value: new THREE.Color(params.uHighColor),
+    },
+    uXspeed: {
+      value: params.uXspeed,
+    },
+    uZspeed: {
+      value: params.uZspeed,
+    },
+    uNoiseSpeed: {
+      value: params.uNoiseSpeed,
+    },
+    uOpacity: {
+      value: params.uOpacity,
+    },
+  },
+  transparent: true,
 });
+
+const plane = new THREE.Mesh(
+  new THREE.PlaneGeometry(1, 1, 1024, 1024),
+  shaderMaterial
+);
+
+plane.rotation.x = -Math.PI / 2;
+scene.add(plane);
 
 // 初始化渲染器
 const renderer = new THREE.WebGLRenderer({ alpha: true });
-
-// 开启环境中的阴影贴图
-// renderer.shadowMap.enabled = true;
-
-// renderer.shadowMap.enabled = true;
-// renderer.shadowMap.type = THREE.BasicShadowMap;
-// renderer.shadowMap.type = THREE.VSMShadowMap;
-renderer.outputEncoding = THREE.sRGBEncoding;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-// renderer.toneMapping = THREE.LinearToneMapping;
-// renderer.toneMapping = THREE.ReinhardToneMapping;
-// renderer.toneMapping = THREE.CineonToneMapping;
-renderer.toneMappingExposure = 0.2;
-
-const gltfLoader = new GLTFLoader();
-let LightBox = null;
-gltfLoader.load('./assets/model/flyLight.glb', (gltf) => {
-  scene.add(gltf.scene);
-  LightBox = gltf.scene.children[0];
-  LightBox.material = shaderMaterial;
-
-  for (let index = 0; index < 150; index++) {
-    let flyLight = gltf.scene.clone(true);
-    let x = (Math.random() - 0.5) * 300;
-    let z = (Math.random() - 0.5) * 300;
-    let y = Math.random() * 60 + 25;
-    flyLight.position.set(x, y, z);
-
-    gsap.to(flyLight.rotation, {
-      y: 2 * Math.PI,
-      duration: 10 + Math.random() * 30,
-      repeat: -1,
-    });
-    gsap.to(flyLight.position, {
-      x: '+=' + Math.random() * 5,
-      y: '+=' + Math.random() * 20,
-      yoyo: true,
-      duration: 5 + Math.random() * 10,
-      repeat: -1,
-    });
-
-    scene.add(flyLight);
-  }
-});
 
 // 设置渲染尺寸大小
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -105,14 +203,10 @@ document.body.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 // 增加阻尼，拖动具有惯性效果
 controls.enableDamping = true;
-// 设置自动旋转
-controls.autoRotate = true;
-controls.autoRotateSpeed = 2;
-controls.maxPolarAngle = (Math.PI / 3) * 2;
-controls.minPolarAngle = (Math.PI / 3) * 2;
+
 // 添加坐标轴
-// const axesHelper = new THREE.AxesHelper(5);
-// scene.add(axesHelper);
+const axesHelper = new THREE.AxesHelper(5);
+scene.add(axesHelper);
 
 window.addEventListener('resize', () => {
   // 更新摄像头
@@ -130,6 +224,7 @@ const clock = new THREE.Clock();
 function render() {
   const elapsedTime = clock.getElapsedTime();
   controls.update();
+  shaderMaterial.uniforms.uTime.value = elapsedTime;
 
   renderer.render(scene, camera);
   // 渲染下一帧的时候就会调用render函数
