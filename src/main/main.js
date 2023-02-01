@@ -1,8 +1,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import gsap from 'gsap';
 
-import deepVertexShader from '../shader/deep/vertex.glsl';
-import deepFragmentShader from '../shader/deep/fragment.glsl';
+import vertexShader from '../shader/flylight/vertex.glsl';
+import fragmentShader from '../shader/flylight/fragment.glsl';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 // 创建场景
 const scene = new THREE.Scene();
@@ -16,42 +19,83 @@ const scene = new THREE.Scene();
  */
 
 const camera = new THREE.PerspectiveCamera(
-  10,
-  window.innerWidth / window.innerHeight,
+  90,
+  window.innerHeight / window.innerHeight,
   0.1,
-  400
+  1000
 );
 
 // 设置相机位置
-camera.position.set(0, 0, 18); // x y z 轴
+camera.position.set(0, 0, 2); // x y z 轴
 scene.add(camera);
 
-const floorGeometry = new THREE.PlaneGeometry(1, 1, 64, 64);
-
-const floorDeepMaterial = new THREE.ShaderMaterial({
-  vertexShader: deepVertexShader,
-  fragmentShader: deepFragmentShader,
-  uniforms: {
-    uTime: {
-      value: 0,
-    },
-  },
+// 创建纹理加载器对象
+const rgbeLoader = new RGBELoader();
+rgbeLoader.loadAsync('./assets/2k.hdr').then((texture) => {
+  texture.mapping = THREE.EquirectangularReflectionMapping;
+  scene.background = texture;
+  scene.environment = texture;
 });
 
-const floor = new THREE.Mesh(floorGeometry, floorDeepMaterial);
-
-scene.add(floor);
+const shaderMaterial = new THREE.ShaderMaterial({
+  vertexShader: vertexShader,
+  fragmentShader: fragmentShader,
+  // transparent: true,
+  side: THREE.DoubleSide,
+  uniforms: {},
+});
 
 // 初始化渲染器
 const renderer = new THREE.WebGLRenderer({ alpha: true });
 
 // 开启环境中的阴影贴图
-renderer.shadowMap.enabled = true;
+// renderer.shadowMap.enabled = true;
+
+// renderer.shadowMap.enabled = true;
+// renderer.shadowMap.type = THREE.BasicShadowMap;
+// renderer.shadowMap.type = THREE.VSMShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+// renderer.toneMapping = THREE.LinearToneMapping;
+// renderer.toneMapping = THREE.ReinhardToneMapping;
+// renderer.toneMapping = THREE.CineonToneMapping;
+renderer.toneMappingExposure = 0.2;
+
+const gltfLoader = new GLTFLoader();
+let LightBox = null;
+gltfLoader.load('./assets/model/flyLight.glb', (gltf) => {
+  scene.add(gltf.scene);
+  LightBox = gltf.scene.children[0];
+  LightBox.material = shaderMaterial;
+
+  for (let index = 0; index < 150; index++) {
+    let flyLight = gltf.scene.clone(true);
+    let x = (Math.random() - 0.5) * 300;
+    let z = (Math.random() - 0.5) * 300;
+    let y = Math.random() * 60 + 25;
+    flyLight.position.set(x, y, z);
+
+    gsap.to(flyLight.rotation, {
+      y: 2 * Math.PI,
+      duration: 10 + Math.random() * 30,
+      repeat: -1,
+    });
+    gsap.to(flyLight.position, {
+      x: '+=' + Math.random() * 5,
+      y: '+=' + Math.random() * 20,
+      yoyo: true,
+      duration: 5 + Math.random() * 10,
+      repeat: -1,
+    });
+
+    scene.add(flyLight);
+  }
+});
 
 // 设置渲染尺寸大小
 renderer.setSize(window.innerWidth, window.innerHeight);
 
-// 讲webgl渲染的canvas内容添加到body
+// 将webgl渲染的canvas内容添加到body
 document.body.appendChild(renderer.domElement);
 
 // 使用渲染器，通过相机将场景渲染进来
@@ -61,27 +105,14 @@ document.body.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 // 增加阻尼，拖动具有惯性效果
 controls.enableDamping = true;
-
+// 设置自动旋转
+controls.autoRotate = true;
+controls.autoRotateSpeed = 2;
+controls.maxPolarAngle = (Math.PI / 3) * 2;
+controls.minPolarAngle = (Math.PI / 3) * 2;
 // 添加坐标轴
-const axesHelper = new THREE.AxesHelper(5);
-scene.add(axesHelper);
-
-// 监听全屏
-window.addEventListener('dblclick', () => {
-  // if (animate1.isActive()) {
-  //   animate1.pause();
-  // } else {
-  //   animate1.resume();
-  // }
-
-  // 全屏操作
-  const fullScreenElement = document.fullscreenElement;
-  if (!fullScreenElement) {
-    renderer.domElement.requestFullscreen();
-  } else {
-    document.exitFullscreen();
-  }
-});
+// const axesHelper = new THREE.AxesHelper(5);
+// scene.add(axesHelper);
 
 window.addEventListener('resize', () => {
   // 更新摄像头
@@ -99,8 +130,6 @@ const clock = new THREE.Clock();
 function render() {
   const elapsedTime = clock.getElapsedTime();
   controls.update();
-
-  floorDeepMaterial.uniforms.uTime.value = elapsedTime;
 
   renderer.render(scene, camera);
   // 渲染下一帧的时候就会调用render函数
