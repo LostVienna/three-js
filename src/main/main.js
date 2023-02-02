@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { Water } from 'three/examples/jsm/objects/Water2';
 import gsap from 'gsap';
 import * as dat from 'dat.gui';
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+
+import vertexShader from '../shader/galaxy/vertex.glsl';
+import fragmentShader from '../shader/galaxy/fragment.glsl';
+
 //创建gui对象
 const gui = new dat.GUI();
 
@@ -27,39 +28,133 @@ const camera = new THREE.PerspectiveCamera(
 );
 
 // 设置相机位置
-camera.position.set(0, 3, 5); // x y z 轴
+camera.position.set(0, 0, 5); // x y z 轴
 scene.add(camera);
 
-// 加载场景背景
-const rgbeLoader = new RGBELoader();
-rgbeLoader.loadAsync('./assets/050.hdr').then((texture) => {
-  texture.mapping = THREE.EquirectangularReflectionMapping;
-  scene.background = texture;
-  scene.environment = texture;
-});
+// const geometry = new THREE.BufferGeometry();
+// const positions = new Float32Array([0, 0, 0]);
+// geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-// 加载浴缸
-const gltfLoader = new GLTFLoader();
-gltfLoader.load('./assets/model/yugang.glb', (gltf) => {
-  console.log(gltf);
-  const yugang = gltf.scene.children[0];
-  yugang.material.side = THREE.DoubleSide;
+// const textureLoader = new THREE.TextureLoader();
+// const texture = textureLoader.load('./textures/particles/10.png');
 
-  const waterGeometry = gltf.scene.children[1].geometry;
-  const wather = new Water(waterGeometry, {
-    color: '#ffffff',
-    scale: 1,
-    flowDirection: new THREE.Vector2(1, 1),
-    textureHeight: 1024,
-    textureWidth: 1024,
+// // 点材质
+// const material = new THREE.ShaderMaterial({
+//   vertexShader,
+//   fragmentShader,
+//   transparent: true,
+//   uniforms: {
+//     uTexture: {
+//       value: texture,
+//     },
+//   },
+// });
+
+// // 生成点材质
+// const points = new THREE.Points(geometry, material);
+// scene.add(points);
+
+let geometry = null;
+let points = null;
+
+const params = {
+  count: 10000,
+  branch: 8,
+  radius: 5,
+  size: 0.1,
+  color: '#ff6030',
+  rotateScal: 0.3,
+  endColor: '#1b3984',
+};
+
+const textureLoader = new THREE.TextureLoader();
+const texture = textureLoader.load('./textures/particles/9.png');
+const texture1 = textureLoader.load('./textures/particles/10.png');
+const texture2 = textureLoader.load('./textures/particles/11.png');
+const centerColor = new THREE.Color(params.color);
+const endColor = new THREE.Color(params.endColor);
+let material = null;
+
+function genrateGalaxy() {
+  geometry = new THREE.BufferGeometry();
+
+  const positions = new Float32Array(params.count * 3);
+  const colors = new Float32Array(params.count * 3);
+  const scales = new Float32Array(params.count);
+  const imgIndex = new Float32Array(params.count);
+
+  for (let index = 0; index < params.count; index++) {
+    const branchAngel =
+      (index % params.branch) * ((2 * Math.PI) / params.branch);
+
+    // 到圆心的距离
+    const distance = Math.random() * params.radius * Math.pow(Math.random(), 3);
+    const randomX =
+      (Math.pow(Math.random() * 2 - 1, 3) * (params.radius - distance)) / 5;
+    const randomY =
+      (Math.pow(Math.random() * 2 - 1, 3) * (params.radius - distance)) / 5;
+    const randomZ =
+      (Math.pow(Math.random() * 2 - 1, 3) * (params.radius - distance)) / 5;
+
+    let current = index * 3;
+    positions[current] =
+      Math.cos(branchAngel + distance * params.rotateScal) * distance + randomX;
+    positions[current + 1] = 0 + randomY;
+    positions[current + 2] =
+      Math.sin(branchAngel + distance * params.rotateScal) * distance + randomZ;
+
+    const mixColor = centerColor.clone();
+    mixColor.lerp(endColor, distance / params.radius);
+
+    colors[current] = mixColor.r;
+    colors[current + 1] = mixColor.g;
+    colors[current + 2] = mixColor.b;
+
+    // 顶点大小
+    scales[current] = Math.random();
+
+    // 根据索引设置不同图案
+    imgIndex[current] = index % 3;
+  }
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('scales', new THREE.BufferAttribute(scales, 1));
+  geometry.setAttribute('imgIndex', new THREE.BufferAttribute(imgIndex, 1));
+
+  material = new THREE.ShaderMaterial({
+    vertexShader,
+    fragmentShader,
+    size: params.size,
+    // color: new THREE.Color(params.color),
+    sizeAttenuation: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    map: texture,
+    alphaMap: texture,
+    transparent: true,
+    vertexColors: true,
+    uniforms: {
+      uTime: {
+        value: 0,
+      },
+      uTexture: {
+        value: texture,
+      },
+      uTexture1: {
+        value: texture1,
+      },
+      uTexture2: {
+        value: texture2,
+      },
+    },
   });
 
-  scene.add(wather);
-  scene.add(yugang);
-});
+  points = new THREE.Points(geometry, material);
+  scene.add(points);
+}
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-scene.add(directionalLight);
+genrateGalaxy();
 
 // 初始化渲染器
 const renderer = new THREE.WebGLRenderer({ alpha: true });
@@ -98,6 +193,7 @@ const clock = new THREE.Clock();
 function render() {
   const elapsedTime = clock.getElapsedTime();
   controls.update();
+  material.uniforms.uTime.value = elapsedTime;
 
   renderer.render(scene, camera);
   // 渲染下一帧的时候就会调用render函数
